@@ -1,100 +1,94 @@
 // SUNUCUYU BU DOSYAYA KURUN
-
 const express = require("express");
-const Users = require("./users/model");
 const server = express();
+const userModel = require("./users/model");
 
-server.use(express.json());
+server.use(express.json()); // JSON formatlı istekleri desteklemesi için.
 
-server.get("/", (req, res) => {
-  //get metodu "/" route => root
-  res.send("İbrahim -root route");
-});
-
-// POST /api/users
-server.post("/api/users", (req, res) => {
-  let user = req.body;
-  if (!user.name || !user.bio) {
-    return res
-      .status(400)
-      .json({ message: "Lütfen kullanıcı için bir name ve bio sağlayın" });
-  } else {
-    Users.insert(user)
-      .then((newUser) => {
-        res.status(201).json(newUser);
-      })
-      .catch((err) => {
-        res
-          .status(500)
-          .json({ message: "Veritabanına kaydedilirken bir hata oluştu" });
-      });
+//api/users --> POST
+server.post("/api/users", async (req, res) => {
+  try {
+    const { name, bio } = req.body;
+    if (!name || !bio) {
+      res
+        .status(400)
+        .json({ message: "Lütfen kullanıcı için bir name ve bio sağlayın" });
+    } else {
+      const inserted = await userModel.insert({ name: name, bio: bio });
+      res.status(201).json(inserted);
+    }
+  } catch (error) {
+    res
+      .status(500)
+      .json({ message: "Veritabanına kaydedilirken bir hata oluştu" });
   }
 });
 
-// GET /api/users
-server.get("/api/users", (req, res) => {
-  Users.find()
-    .then((users) => {
-      res.status(201).json(users);
-    })
-    .catch((err) => {
-      res.status(500).json({ message: "Kullanıcı bilgileri alınamadı" });
-    });
-});
-
-//GET /api/users/:id
-server.get("/api/users/:id", (req, res) => {
-  Users.findById(req.params.id)
-    .then((user) => {
-      if (!user) {
-        res
-          .status(404)
-          .json({ message: "Belirtilen ID'li kullanıcı bulunamadı" });
-      }
-      res.status(200).json(user);
-    })
-    .catch((err) => {
-      res.status(500).json({ message: "Kullanıcı bilgisi alınamadı" });
-    });
-});
-
-// DELETE /api/users/:id
-server.delete("/api/users/:id", async (req, res) => {
+//api/users --->GET
+server.get("/api/users", async (req, res) => {
   try {
-    let willBeDeleteUser = await Users.findById(req.params.id);
-    if (!willBeDeleteUser) {
+    const allUsers = await userModel.find();
+    res.json(allUsers);
+  } catch (error) {
+    res.status(500).json({ message: "Kullanıcı bilgileri alınamadı" });
+  }
+});
+
+server.get("/api/users/:id", async (req, res) => {
+  try {
+    const user = await userModel.findById(req.params.id);
+    if (!user) {
       res
         .status(404)
         .json({ message: "Belirtilen ID'li kullanıcı bulunamadı" });
     } else {
-      await Users.remove(req.params.id);
-      res.status(200).json(willBeDeleteUser);
+      res.json(user);
+    }
+  } catch (error) {
+    res.status(500).json("Kullanıcı bilgisi alınamadı");
+  }
+});
+
+server.delete("/api/users/:id", async (req, res) => {
+  try {
+    const user = await userModel.findById(req.params.id);
+    if (!user) {
+      res
+        .status(404)
+        .json({ message: "Belirtilen ID'li kullanıcı bulunamadı" });
+    } else {
+      await userModel.remove(req.params.id);
+      res.json(user);
     }
   } catch (error) {
     res.status(500).json({ message: "Kullanıcı silinemedi" });
   }
 });
 
-// PUT /api/users/:id
 server.put("/api/users/:id", async (req, res) => {
   try {
-    let willBeUpdateUser = await Users.findById(req.params.id);
-    if (!willBeUpdateUser) {
+    const { name, bio } = req.body;
+    if (!name || !bio) {
       res
-        .status(404)
-        .json({ message: "Belirtilen ID'li kullanıcı bulunamadı" });
+        .status(400)
+        .json({ message: "Lütfen kullanıcı için bir name ve bio sağlayın" });
     } else {
-      if (!req.body.name || !req.body.bio) {
+      const user = await userModel.findById(req.params.id);
+      if (!user) {
         res
-          .status(400)
-          .json({ message: "Lütfen kullanıcı için name ve bio sağlayın" });
+          .status(404)
+          .json({ message: "Belirtilen ID'li kullanıcı bulunamadı" });
       } else {
-        let updateUser = await Users.update(req.params.id, req.body);
-        res.status(200).json(updateUser);
+        const updatedUser = await userModel.update(req.params.id, {
+          name: name,
+          bio: bio,
+        });
+        res.json(updatedUser);
       }
     }
   } catch (error) {
     res.status(500).json({ message: "Kullanıcı bilgileri güncellenemedi" });
   }
 });
+
 module.exports = server; // SERVERINIZI EXPORT EDİN {}
